@@ -13,6 +13,8 @@
 #include "opt/routemin.hpp"
 #include "solution/Solution.hpp"
 #include "solution/savings.hpp"
+#include <filesystem>       // NOTE: add this line
+#include <iomanip>
 
 #ifdef GUI
     #include "Renderer.hpp"
@@ -139,6 +141,7 @@ int main(int argc, char* argv[]) {
 
 
     const auto coreopt_iterations = params.get_coreopt_iterations();
+    const auto max_seconds = params.get_max_execution_seconds();
 
     auto neighbor = best_solution;
 
@@ -194,7 +197,11 @@ int main(int argc, char* argv[]) {
 
 
 #ifdef VERBOSE
-    std::cout << "Running COREOPT for " << coreopt_iterations << " iterations.\n";
+    if (max_seconds.has_value()) {
+        std::cout << "Running COREOPT for " << max_seconds.value() << " seconds.\n";
+    } else {
+        std::cout << "Running COREOPT for " << coreopt_iterations << " iterations.\n";
+    }
 
     auto welford_rac_before_shaking = cobra::Welford();
     auto welford_rac_after_shaking = cobra::Welford();
@@ -221,6 +228,30 @@ int main(int argc, char* argv[]) {
 
 #endif
 
+    // todo
+    // ==========================================================
+    // == 在这里添加代码 (第 1 部分) ==
+
+    // 1. 构造 CSV 文件名
+    const auto progress_csv_file = params.get_outpath() + get_basename(params.get_instance_path()) + "_seed-" +
+                                   std::to_string(params.get_seed()) + ".progress.csv";
+
+    // 2. 确保目录存在
+    std::filesystem::create_directories(params.get_outpath());
+
+    // 3. 以追加模式 (std::ios_base::app) 打开文件
+    std::ofstream progress_stream(progress_csv_file, std::ios_base::app);
+    progress_stream << std::setprecision(10); // 设置精度
+
+    // 4. 记录初始解 (相对时间为 0.0)
+    progress_stream << 0.0 << ";" << best_solution.get_cost() << "\n" << std::flush;
+
+    // 5. 启动算法迭代循环的计时器
+    cobra::Timer algorithm_timer;
+
+    // == 添加代码结束 ==
+    // ==========================================================
+
 
 #ifdef GUI
     auto renderer = Renderer(instance, neighbor.get_cost());
@@ -229,7 +260,25 @@ int main(int argc, char* argv[]) {
     // Cost of the working solution, from which neighbor is obtained after shaking and local search.
     double reference_solution_cost = neighbor.get_cost();
 
-    for (auto iter = 0; iter < coreopt_iterations; iter++) {
+    for (long iter = 0; ; iter++) { // 无限循环，'long' 以防迭代次数过多
+
+        // ==========================================
+        // == 在这里添加终止检查 ==
+        if (max_seconds.has_value()) {
+            // 基于时间的终止
+            if (algorithm_timer.elapsed_time<std::chrono::seconds>() >= max_seconds.value()) {
+                break; // 退出循环
+            }
+        } else {
+            // 基于迭代的终止
+            if (iter >= coreopt_iterations) {
+                break; // 退出循环
+            }
+        }
+        // == 终止检查结束 ==
+        // ==========================================
+
+//    for (auto iter = 0; iter < coreopt_iterations; iter++) {
 
         neighbor.apply_undo_list1(neighbor);
         neighbor.clear_do_list1();
@@ -305,6 +354,22 @@ int main(int argc, char* argv[]) {
             // best_solution = solution;
 
             improved_best_solution = true;
+
+            // TODO: 添加输出csv记录
+            // ==========================================================
+            // == 在这里添加代码 (第 2 部分) ==
+
+            // 1. 获取相对于 algorithm_timer 的时间（浮点数秒）
+            const auto relative_sec = algorithm_timer.elapsed_time<std::chrono::microseconds>() / 1'000'000.0;
+
+            // 2. 获取新成本
+            const auto new_cost = neighbor.get_cost();
+
+            // 3. 按照格式 {time};{cost}\n 写入并刷新
+            progress_stream << relative_sec << ";" << new_cost << "\n" << std::flush;
+
+            // == 添加代码结束 ==
+            // ==========================================================
 
             neighbor.apply_do_list2(best_solution);
             neighbor.apply_do_list1(best_solution);  // latest changes
@@ -399,11 +464,28 @@ int main(int argc, char* argv[]) {
         if (timer.elapsed_time<std::chrono::seconds>() > 1) {
             timer.reset();
 
-            const auto progress = 100.0 * (iter + 1.0) / coreopt_iterations;
-            const auto elapsed_seconds = coreopt_timer.elapsed_time<std::chrono::seconds>();
+            const auto elapsed_seconds = algorithm_timer.elapsed_time<std::chrono::seconds>();
             const auto iter_per_second = static_cast<double>(iter + 1) / (static_cast<double>(elapsed_seconds) + 0.01);
-            const auto remaining_iter = coreopt_iterations - iter;
-            const auto estimated_rem_time = static_cast<double>(remaining_iter) / iter_per_second;
+
+            double progress = 0.0;
+            double estimated_rem_time = 0.0;
+
+            if (max_seconds.has_value()) {
+                // 基于时间的进度
+                progress = 100.0 * static_cast<double>(elapsed_seconds) / static_cast<double>(max_seconds.value());
+                estimated_rem_time = static_cast<double>(max_seconds.value() - elapsed_seconds);
+            } else {
+                // 基于迭代的进度
+                progress = 100.0 * (iter + 1.0) / coreopt_iterations;
+                const auto remaining_iter = coreopt_iterations - (iter + 1); // iter 从0开始，所以用 iter+1
+                estimated_rem_time = static_cast<double>(remaining_iter) / iter_per_second;
+            }
+
+//            const auto progress = 100.0 * (iter + 1.0) / coreopt_iterations;
+//            const auto elapsed_seconds = coreopt_timer.elapsed_time<std::chrono::seconds>();
+//            const auto iter_per_second = static_cast<double>(iter + 1) / (static_cast<double>(elapsed_seconds) + 0.01);
+//            const auto remaining_iter = coreopt_iterations - iter;
+//            const auto estimated_rem_time = static_cast<double>(remaining_iter) / iter_per_second;
 
             auto gamma_mean = 0.0;
             for (auto i = instance.get_vertices_begin(); i < instance.get_vertices_end(); i++) {
@@ -423,6 +505,13 @@ int main(int argc, char* argv[]) {
         }
 #endif
     }
+
+    // TODO
+    // ==========================================================
+    // == 在这里添加代码（第 3 部分） ==
+    progress_stream.close(); // 关闭 CSV 文件流
+    // == 添加代码结束 ==
+    // ==========================================================
 
     int global_time_elapsed = global_timer.elapsed_time<std::chrono::seconds>();
 

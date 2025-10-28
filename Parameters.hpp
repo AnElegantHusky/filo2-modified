@@ -39,7 +39,12 @@
 #define TOKEN_HELP ("--help")
 #define TOKEN_SA_INIT_FACTOR ("--sa-initial-factor")
 #define TOKEN_SA_FINAL_FACTOR ("--sa-final-factor")
+#include <optional> // 确保包含了 <optional>
 
+// == 在这里添加下面两行 ==
+#define TOKEN_TIME ("-t")
+#define TOKEN_TIME_LONG ("--time")
+// == 添加结束 ==
 
 class Parameters {
 
@@ -65,6 +70,11 @@ public:
 
             set(token, value);
         }
+    }
+
+    // 在 Parameters.hpp 的 public: 部分
+    auto get_max_execution_seconds() const -> std::optional<long> {
+        return max_execution_seconds;
     }
 
     inline int get_solution_cache_size() const {
@@ -153,6 +163,8 @@ public:
             sa_final_factor = std::stof(value);
         } else if (key == TOKEN_NEIGHBORS_NUM) {
             neighbors_num = std::stoi(value);
+        } else if (key == TOKEN_TIME || key == TOKEN_TIME_LONG) {
+            max_execution_seconds = std::stol(value); // 使用 stol (string to long)
         } else {
             std::cout << "Error: unknown argument '" << key << "'. Try --help for more information.\n";
             exit(EXIT_SUCCESS);
@@ -177,6 +189,7 @@ private:
     double sa_initial_factor = DEFAULT_SA_INIT_FACTOR;
     double sa_final_factor = DEFAULT_SA_FINAL_FACTOR;
     int neighbors_num = DEFAULT_NEIGHBORS_NUM;
+    std::optional<long> max_execution_seconds;
 };
 
 
