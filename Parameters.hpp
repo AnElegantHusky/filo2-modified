@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <iostream>
 #include <string>
+#include <optional> // 确保包含了 <optional>
 
 // Default parameters.
 #define DEFAULT_OUTPATH ("./")
@@ -23,6 +24,8 @@
 #define DEFAULT_SA_INIT_FACTOR (0.1)
 #define DEFAULT_SA_FINAL_FACTOR (0.01)
 
+#define DEFAULT_USE_ROUTEMIN (true)
+
 // Tokens.
 #define TOKEN_OUTPATH ("--outpath")
 #define TOKEN_TOLERANCE ("--tolerance")
@@ -39,7 +42,9 @@
 #define TOKEN_HELP ("--help")
 #define TOKEN_SA_INIT_FACTOR ("--sa-initial-factor")
 #define TOKEN_SA_FINAL_FACTOR ("--sa-final-factor")
-#include <optional> // 确保包含了 <optional>
+
+#define TOKEN_USE_ROUTEMIN ("--use-routemin")
+
 
 // == 在这里添加下面两行 ==
 #define TOKEN_TIME ("-t")
@@ -130,6 +135,10 @@ public:
         return neighbors_num;
     }
 
+    inline bool get_use_routemin() const {
+        return use_routemin;
+    }
+
     void set(const std::string& key, const std::string& value) {
 
         if (key == TOKEN_OUTPATH) {
@@ -165,6 +174,12 @@ public:
             neighbors_num = std::stoi(value);
         } else if (key == TOKEN_TIME || key == TOKEN_TIME_LONG) {
             max_execution_seconds = std::stol(value); // 使用 stol (string to long)
+        } else if (key == TOKEN_USE_ROUTEMIN) {
+            if (value == "false") {
+                use_routemin = false;
+            } else {
+                use_routemin = true;
+            }
         } else {
             std::cout << "Error: unknown argument '" << key << "'. Try --help for more information.\n";
             exit(EXIT_SUCCESS);
@@ -190,6 +205,7 @@ private:
     double sa_final_factor = DEFAULT_SA_FINAL_FACTOR;
     int neighbors_num = DEFAULT_NEIGHBORS_NUM;
     std::optional<long> max_execution_seconds;
+    bool use_routemin = DEFAULT_USE_ROUTEMIN;
 };
 
 

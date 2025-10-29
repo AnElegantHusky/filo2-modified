@@ -29,6 +29,7 @@ auto get_basename(const std::string& pathname) -> std::string {
 // - Inputs are never checked when the solver is compiled in release mode. There are just a lot of assertions checked in debug mode.
 int main(int argc, char* argv[]) {
 
+
 #ifndef NDEBUG
     std::cout << "******************************\n";
     std::cout << "Probably running in DEBUG mode\n";
@@ -116,8 +117,11 @@ int main(int argc, char* argv[]) {
                   << ".\n";
         timer.reset();
 #endif
-
-        best_solution = routemin(instance, best_solution, rand_engine, move_generators, kmin, routemin_iterations, tolerance);
+        // Note: route minimization
+        if (params.get_use_routemin()) {
+            best_solution = routemin(instance, best_solution, rand_engine, move_generators, kmin, routemin_iterations, tolerance);
+        }
+//        best_solution = routemin(instance, best_solution, rand_engine, move_generators, kmin, routemin_iterations, tolerance);
 
 #ifdef VERBOSE
         std::cout << "Final solution: obj = " << best_solution.get_cost() << ", n. routes = " << best_solution.get_routes_num() << "\n";
@@ -234,7 +238,7 @@ int main(int argc, char* argv[]) {
 
     // 1. 构造 CSV 文件名
     const auto progress_csv_file = params.get_outpath() + get_basename(params.get_instance_path()) + "_seed-" +
-                                   std::to_string(params.get_seed()) + ".progress.csv";
+                                   std::to_string(params.get_seed()) + ".vrp.csv";
 
     // 2. 确保目录存在
     std::filesystem::create_directories(params.get_outpath());
