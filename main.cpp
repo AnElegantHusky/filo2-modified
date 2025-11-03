@@ -252,6 +252,7 @@ int main(int argc, char* argv[]) {
 
     // 5. 启动算法迭代循环的计时器
     cobra::Timer algorithm_timer;
+    std::clock_t cpu_start_time = std::clock();
 
     // == 添加代码结束 ==
     // ==========================================================
@@ -269,10 +270,16 @@ int main(int argc, char* argv[]) {
         // ==========================================
         // == 在这里添加终止检查 ==
         if (max_seconds.has_value()) {
-            // 基于时间的终止
-            if (algorithm_timer.elapsed_time<std::chrono::seconds>() >= max_seconds.value()) {
+//            // 基于墙上时间的终止
+//            if (algorithm_timer.elapsed_time<std::chrono::seconds>() >= max_seconds.value()) {
+//                break; // 退出循环
+//            }
+            // 基于CPU时间的终止
+            double cpu_time_used = static_cast<double>(std::clock() - cpu_start_time) / CLOCKS_PER_SEC;
+            if (cpu_time_used >= max_seconds.value()) {
                 break; // 退出循环
             }
+
         } else {
             // 基于迭代的终止
             if (iter >= coreopt_iterations) {
